@@ -1,0 +1,23 @@
+plugins {
+    id 'java'
+}
+
+group = 'mg.demo'
+version = '1.0-SNAPSHOT'
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_21
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation 'redis.clients:jedis:5.1.2'
+
+}
+
+test {
+    useJUnitPlatform()
+}
