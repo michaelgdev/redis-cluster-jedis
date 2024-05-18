@@ -14,7 +14,9 @@ repositories {
 }
 
 dependencies {
-    implementation 'redis.clients:jedis:5.1.2'
+    implementation 'io.lettuce:lettuce-core:6.3.2.RELEASE'
+    implementation 'org.slf4j:slf4j-api:1.7.30'
+    implementation 'org.slf4j:slf4j-simple:1.7.30' // For logging, replace with the logger of your choice
 
 }
 

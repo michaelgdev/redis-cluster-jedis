@@ -12,5 +12,10 @@ docker-compose down
 Checking The Cluster 
 ```
 redis-cli -p 6378 cluster nodes
-docker logs docker-redis-node1-1 
+```
+```
+docker logs docker-redis-node1-1
+```
+```
+nc -zv localhost 6378 
 ```
