@@ -1,0 +1,27 @@
+version: '3.8'
+
+services:
+  redis-cluster:
+    image: 'bitnami/redis-cluster:latest'
+    environment:
+      - REDIS_NODES=6
+      - ALLOW_EMPTY_PASSWORD=yes
+    ports:
+      - '6379:6379'
+      - '6380:6380'
+      - '6381:6381'
+      - '6382:6382'
+      - '6383:6383'
+      - '6384:6384'
+      - '16379:16379'
+      - '16380:16380'
+      - '16381:16381'
+      - '16382:16382'
+      - '16383:16383'
+      - '16384:16384'
+    volumes:
+      - 'redis-cluster-data:/bitnami'
+
+volumes:
+  redis-cluster-data:
+    driver: local

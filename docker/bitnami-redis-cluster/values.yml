@@ -1,0 +1,5 @@
+cluster:
+  nodes: 6  # Set the number of Redis nodes to 6
+  replicas: 1  # Create one replica for each master
+  externalAccess:
+    enabled: true  # Enable external access

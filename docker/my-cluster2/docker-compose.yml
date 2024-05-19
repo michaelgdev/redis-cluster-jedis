@@ -1,0 +1,66 @@
+version: '3'
+services:
+  redis-1:
+    image: redis:6.2
+    container_name: redis-1
+    command: ["redis-server", "/usr/local/etc/redis/redis-1.conf"]
+    volumes:
+      - ./redis-1.conf:/usr/local/etc/redis/redis-1.conf
+    ports:
+      - "6379:6379"
+    networks:
+      - default
+  redis-2:
+    image: redis:6.2
+    container_name: redis-2
+    command: ["redis-server", "/usr/local/etc/redis/redis-2.conf"]
+    volumes:
+      - ./redis-2.conf:/usr/local/etc/redis/redis-2.conf
+    ports:
+      - "6380:6380"
+    networks:
+      - default
+  redis-3:
+    image: redis:6.2
+    container_name: redis-3
+    command: ["redis-server", "/usr/local/etc/redis/redis-3.conf"]
+    volumes:
+      - ./redis-3.conf:/usr/local/etc/redis/redis-3.conf
+    ports:
+      - "6381:6381"
+    networks:
+      - default
+  redis-4:
+    image: redis:6.2
+    container_name: redis-4
+    command: ["redis-server", "/usr/local/etc/redis/redis-4.conf"]
+    volumes:
+      - ./redis-4.conf:/usr/local/etc/redis/redis-4.conf
+    ports:
+      - "6382:6382"
+    networks:
+      - default
+  redis-5:
+    image: redis:6.2
+    container_name: redis-5
+    command: ["redis-server", "/usr/local/etc/redis/redis-5.conf"]
+    volumes:
+      - ./redis-5.conf:/usr/local/etc/redis/redis-5.conf
+    ports:
+      - "6383:6383"
+    networks:
+      - default
+  redis-6:
+    image: redis:6.2
+    container_name: redis-6
+    command: ["redis-server", "/usr/local/etc/redis/redis-6.conf"]
+    volumes:
+      - ./redis-6.conf:/usr/local/etc/redis/redis-6.conf
+    ports:
+      - "6384:6384"
+    networks:
+      - default
+
+networks:
+  default:
+    driver: bridge
