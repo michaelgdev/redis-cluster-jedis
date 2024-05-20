@@ -2,9 +2,14 @@
 
 # Step 1. Determine IP address of Docker Host machine
 Put found address in docker-compose.yml in the param 'cluster-announce-ip' and for the Step 3
+
+```Bash
+./update-ip.sh
+```
 ```Bash
 ifconfig | grep -o 'inet \([0-9]\{1,3\}\.\)\{3\}[0-9]\{1,3\}' | grep -v '127.0.0.1' | awk '{print $2}' | head -n 1
 ```
+
 # Step 2. Start Docker Containers
 ```Bash
 docker-compose up -d

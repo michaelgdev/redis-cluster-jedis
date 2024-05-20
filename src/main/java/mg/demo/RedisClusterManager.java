@@ -1,6 +1,8 @@
 package mg.demo;
 
 import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.util.HashSet;
 import java.util.Set;
@@ -47,8 +49,8 @@ public class RedisClusterManager {
             createCommand.append(" --cluster-yes");
 
             // Execute the create cluster command
-            System.out.println("Created Command: " + createCommand);
             ProcessBuilder createProcessBuilder = new ProcessBuilder(createCommand.toString().split(" "));
+            System.out.println("Executing command: " + String.join(" ", createProcessBuilder.command()));
             Process createProcess = createProcessBuilder.start();
             createProcess.waitFor();
             printProcessOutput(createProcess);
@@ -58,11 +60,43 @@ public class RedisClusterManager {
             // Initialize JedisCluster
             this.jedisCluster = new JedisCluster(clusterNodes);
 
-            return true;
+            // Wait until the cluster is up
+            if (waitForClusterState("ok", 10000)) {
+                return true;
+            } else {
+                System.err.println("Cluster did not reach a healthy state in time.");
+                return false;
+            }
         } catch (Exception e) {
             e.printStackTrace();
             return false;
         }
+    }
+
+    private boolean waitForClusterState(String desiredState, long timeoutMillis) {
+        long startTime = System.currentTimeMillis();
+        while (System.currentTimeMillis() - startTime < timeoutMillis) {
+            try {
+                HostAndPort node = clusterNodes.iterator().next();
+                ProcessBuilder clusterInfoProcessBuilder = new ProcessBuilder(
+                        "redis-cli", "-p", String.valueOf(node.getPort()), "cluster", "info");
+                Process clusterInfoProcess = clusterInfoProcessBuilder.start();
+                clusterInfoProcess.waitFor();
+                String output = getProcessOutput(clusterInfoProcess);
+                if (output.contains("cluster_state:" + desiredState)) {
+                    System.out.println("Cluster state is now: " + desiredState);
+                    return true;
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+            try {
+                Thread.sleep(1000);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        }
+        return false;
     }
 
     public boolean addNewNodeToCluster(String newNodeIp, int newNodePort) {
@@ -73,22 +107,22 @@ public class RedisClusterManager {
             ProcessBuilder meetProcessBuilder = new ProcessBuilder(
                     "redis-cli", "-h", newNodeIp, "-p", String.valueOf(newNodePort),
                     "cluster", "meet", existingNode.getHost(), String.valueOf(existingNode.getPort()));
-            System.out.println("Created Command: " + String.join(" ", meetProcessBuilder.command()));
+            System.out.println("Executing command: " + String.join(" ", meetProcessBuilder.command()));
             Process meetProcess = meetProcessBuilder.start();
             meetProcess.waitFor();
             printProcessOutput(meetProcess);
 
-            // Add the new node to the cluster
-            ProcessBuilder addNodeProcessBuilder = new ProcessBuilder(
-                    "redis-cli", "--cluster", "add-node", newNodeIp + ":" + newNodePort,
-                    existingNode.getHost() + ":" + existingNode.getPort());
-            System.out.println("Created Command: " + String.join(" ", addNodeProcessBuilder.command()));
-            Process addNodeProcess = addNodeProcessBuilder.start();
-            addNodeProcess.waitFor();
-            printProcessOutput(addNodeProcess);
+            // Add a delay to ensure the node has time to join the cluster
+            Thread.sleep(5000);
+
+            // Check cluster status to confirm the node has joined
+            if (!waitForClusterNodes(newNodeIp, newNodePort, 10000)) {
+                System.err.println("Node did not join the cluster in time.");
+                return false;
+            }
 
             // Reshard the cluster to distribute slots to the new node
-            reshardCluster(newNodeIp, newNodePort);
+            reshardCluster(existingNode, newNodeIp, newNodePort);
 
             // Update the cluster nodes
             clusterNodes.add(new HostAndPort(newNodeIp, newNodePort));
@@ -102,9 +136,40 @@ public class RedisClusterManager {
         }
     }
 
-    private void reshardCluster(String newNodeIp, int newNodePort) {
+    private boolean waitForClusterNodes(String newNodeIp, int newNodePort, long timeoutMillis) {
+        long startTime = System.currentTimeMillis();
+        while (System.currentTimeMillis() - startTime < timeoutMillis) {
+            try {
+                ProcessBuilder nodesProcessBuilder = new ProcessBuilder(
+                        "redis-cli", "-h", newNodeIp, "-p", String.valueOf(newNodePort), "cluster", "nodes");
+                Process nodesProcess = nodesProcessBuilder.start();
+                nodesProcess.waitFor();
+                String output = getProcessOutput(nodesProcess);
+                if (output.contains("connected")) {
+                    System.out.println("Node " + newNodeIp + ":" + newNodePort + " has joined the cluster.");
+                    return true;
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+            try {
+                Thread.sleep(1000);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        }
+        return false;
+    }
+
+    private void reshardCluster(HostAndPort existingNode, String newNodeIp, int newNodePort) {
         try {
-            HostAndPort existingNode = clusterNodes.iterator().next();
+            // Get the node IDs
+            String newNodeId = getNodeId(newNodeIp, newNodePort);
+            String existingNodeId = getNodeId(existingNode.getHost(), existingNode.getPort());
+            if (newNodeId == null || existingNodeId == null) {
+                System.err.println("Error retrieving node IDs.");
+                return;
+            }
 
             // Calculate the number of slots to move to the new node
             int totalSlots = 16384;
@@ -113,20 +178,44 @@ public class RedisClusterManager {
             // Reshard the cluster
             ProcessBuilder reshardProcessBuilder = new ProcessBuilder(
                     "redis-cli", "--cluster", "reshard", existingNode.getHost() + ":" + existingNode.getPort(),
-                    "--cluster-from", existingNode.getHost() + ":" + existingNode.getPort(),
-                    "--cluster-to", newNodeIp + ":" + newNodePort,
+                    "--cluster-from", existingNodeId,
+                    "--cluster-to", newNodeId,
                     "--cluster-slots", String.valueOf(slotsPerNode),
-                    "--cluster-yes");
-            System.out.println("Created Command: " + String.join(" ", reshardProcessBuilder.command()));
+                    "--cluster-yes", "-p", String.valueOf(existingNode.getPort()));
+            System.out.println("Executing command: " + String.join(" ", reshardProcessBuilder.command()));
             Process reshardProcess = reshardProcessBuilder.start();
+
+            // Consume the process output in separate threads
+            StreamGobbler outputGobbler = new StreamGobbler(reshardProcess.getInputStream());
+            StreamGobbler errorGobbler = new StreamGobbler(reshardProcess.getErrorStream());
+            outputGobbler.start();
+            errorGobbler.start();
+
             reshardProcess.waitFor();
-            printProcessOutput(reshardProcess);
+            outputGobbler.join();
+            errorGobbler.join();
 
             System.out.println("Successfully resharded the cluster to include the new node.");
         } catch (Exception e) {
             System.err.println("Error resharding the cluster: " + e.getMessage());
             e.printStackTrace();
         }
+    }
+
+    private String getNodeId(String host, int port) throws Exception {
+        ProcessBuilder nodeIdProcessBuilder = new ProcessBuilder(
+                "redis-cli", "-h", host, "-p", String.valueOf(port), "cluster", "nodes");
+        Process nodeIdProcess = nodeIdProcessBuilder.start();
+        nodeIdProcess.waitFor();
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(nodeIdProcess.getInputStream()))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                if (line.contains(host + ":" + port)) {
+                    return line.split(" ")[0];
+                }
+            }
+        }
+        return null;
     }
 
     public boolean removeNodeFromCluster(String removeNodeIp, int removeNodePort) {
@@ -137,6 +226,7 @@ public class RedisClusterManager {
             ProcessBuilder nodeIdProcessBuilder = new ProcessBuilder(
                     "redis-cli", "-h", existingNode.getHost(), "-p", String.valueOf(existingNode.getPort()),
                     "cluster", "nodes");
+            System.out.println("Executing command: " + String.join(" ", nodeIdProcessBuilder.command()));
             Process nodeIdProcess = nodeIdProcessBuilder.start();
             nodeIdProcess.waitFor();
             String nodeId = getNodeIdFromOutput(nodeIdProcess, removeNodeIp, removeNodePort);
@@ -144,8 +234,8 @@ public class RedisClusterManager {
             if (nodeId != null) {
                 // Remove the node from the cluster
                 ProcessBuilder removeNodeProcessBuilder = new ProcessBuilder(
-                        "redis-cli", "--cluster", "del-node", existingNode.getHost() + ":" + existingNode.getPort(), nodeId);
-                System.out.println("Created Command: " + String.join(" ", removeNodeProcessBuilder.command()));
+                        "redis-cli", "--cluster", "del-node", existingNode.getHost() + ":" + existingNode.getPort(), nodeId, "-p", String.valueOf(existingNode.getPort()));
+                System.out.println("Executing command: " + String.join(" ", removeNodeProcessBuilder.command()));
                 Process removeNodeProcess = removeNodeProcessBuilder.start();
                 removeNodeProcess.waitFor();
                 printProcessOutput(removeNodeProcess);
@@ -176,6 +266,17 @@ public class RedisClusterManager {
             }
         }
         return null;
+    }
+
+    private String getProcessOutput(Process process) throws Exception {
+        StringBuilder output = new StringBuilder();
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                output.append(line).append("\n");
+            }
+        }
+        return output.toString();
     }
 
     private void printProcessOutput(Process process) throws Exception {
