@@ -10,13 +10,13 @@ import java.util.Arrays;
 public  class LettuceDemo {
 
 
-    public static void lettuceStart() {
-        RedisURI node1 = RedisURI.create("redis://192.168.10.110:6379");
-        RedisURI node2 = RedisURI.create("redis://192.168.10.110:6380");
-        RedisURI node3 = RedisURI.create("redis://192.168.10.110:6381");
-        RedisURI node4 = RedisURI.create("redis://192.168.10.110:6382");
-        RedisURI node5 = RedisURI.create("redis://192.168.10.110:6383");
-        RedisURI node6 = RedisURI.create("redis://192.168.10.110:6384");
+    public static void start() {
+        RedisURI node1 = RedisURI.create("redis://192.168.10.53:6379");
+        RedisURI node2 = RedisURI.create("redis://192.168.10.53:6380");
+        RedisURI node3 = RedisURI.create("redis://192.168.10.53:6381");
+        RedisURI node4 = RedisURI.create("redis://192.168.10.53:6382");
+        RedisURI node5 = RedisURI.create("redis://192.168.10.53:6383");
+        RedisURI node6 = RedisURI.create("redis://192.168.10.53:6384");
 
         RedisClusterClient clusterClient = RedisClusterClient.create(Arrays.asList(node1, node2, node3, node4, node5, node6));
 

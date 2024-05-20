@@ -14,15 +14,23 @@ docker-compose up -d
 docker-compose down
 ```
 # Step 3. Creating a Redis Cluster
+
+
+```Bash
+redis-cli --cluster create 192.168.10.53:6379 192.168.10.53:6380 192.168.10.53:6381
+```
 ```Bash
 redis-cli --cluster create \
-192.168.10.110:6379 \
-192.168.10.110:6380 \
-192.168.10.110:6381 \
-192.168.10.110:6382 \
-192.168.10.110:6383 \
-192.168.10.110:6384 \
+192.168.10.53:6379 \
+192.168.10.53:6380 \
+192.168.10.53:6381 \
+192.168.10.53:6382 \
+192.168.10.53:6383 \
+192.168.10.53:6384 \
 --cluster-replicas 1 --cluster-yes
+```
+```Bash
+redis-cli cluster nodes
 ```
 
 Checking The Cluster
