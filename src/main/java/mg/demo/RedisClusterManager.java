@@ -1,8 +1,6 @@
 package mg.demo;
 
 import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.util.HashSet;
 import java.util.Set;
@@ -113,7 +111,7 @@ public class RedisClusterManager {
             printProcessOutput(meetProcess);
 
             // Add a delay to ensure the node has time to join the cluster
-            Thread.sleep(5000);
+//            Thread.sleep(5000);
 
             // Check cluster status to confirm the node has joined
             if (!waitForClusterNodes(newNodeIp, newNodePort, 10000)) {
@@ -121,12 +119,12 @@ public class RedisClusterManager {
                 return false;
             }
 
-            // Reshard the cluster to distribute slots to the new node
-            reshardCluster(existingNode, newNodeIp, newNodePort);
-
             // Update the cluster nodes
             clusterNodes.add(new HostAndPort(newNodeIp, newNodePort));
             updateClusterNodes(clusterNodes);
+
+            // Reshard the cluster to distribute slots to the new node
+            reshardCluster(existingNode, newNodeIp, newNodePort);
 
             System.out.println("Successfully added new node to the cluster.");
             return true;
@@ -165,35 +163,41 @@ public class RedisClusterManager {
         try {
             // Get the node IDs
             String newNodeId = getNodeId(newNodeIp, newNodePort);
-            String existingNodeId = getNodeId(existingNode.getHost(), existingNode.getPort());
-            if (newNodeId == null || existingNodeId == null) {
-                System.err.println("Error retrieving node IDs.");
+            if (newNodeId == null) {
+                System.err.println("Error retrieving new node ID.");
                 return;
             }
 
-            // Calculate the number of slots to move to the new node
             int totalSlots = 16384;
-            int slotsPerNode = totalSlots / (clusterNodes.size() + 1); // Include the new node
+            int slotsPerNode = totalSlots / (clusterNodes.size());
 
-            // Reshard the cluster
-            ProcessBuilder reshardProcessBuilder = new ProcessBuilder(
-                    "redis-cli", "--cluster", "reshard", existingNode.getHost() + ":" + existingNode.getPort(),
-                    "--cluster-from", existingNodeId,
-                    "--cluster-to", newNodeId,
-                    "--cluster-slots", String.valueOf(slotsPerNode),
-                    "--cluster-yes", "-p", String.valueOf(existingNode.getPort()));
-            System.out.println("Executing command: " + String.join(" ", reshardProcessBuilder.command()));
-            Process reshardProcess = reshardProcessBuilder.start();
+            for (HostAndPort node : clusterNodes) {
+                String nodeId = getNodeId(node.getHost(), node.getPort());
+                if (nodeId == null || nodeId.equals(newNodeId)) {
+                    continue;
+                }
 
-            // Consume the process output in separate threads
-            StreamGobbler outputGobbler = new StreamGobbler(reshardProcess.getInputStream());
-            StreamGobbler errorGobbler = new StreamGobbler(reshardProcess.getErrorStream());
-            outputGobbler.start();
-            errorGobbler.start();
+                int slotsToMove = Math.min(slotsPerNode, totalSlots);
+                totalSlots -= slotsToMove;
 
-            reshardProcess.waitFor();
-            outputGobbler.join();
-            errorGobbler.join();
+                ProcessBuilder reshardProcessBuilder = new ProcessBuilder(
+                        "redis-cli", "--cluster", "reshard", node.getHost() + ":" + node.getPort(),
+                        "--cluster-from", nodeId,
+                        "--cluster-to", newNodeId,
+                        "--cluster-slots", String.valueOf(slotsToMove),
+                        "--cluster-yes", "-p", String.valueOf(node.getPort()));
+                System.out.println("Executing command: " + String.join(" ", reshardProcessBuilder.command()));
+                Process reshardProcess = reshardProcessBuilder.start();
+
+                StreamLogger outputLogger = new StreamLogger(reshardProcess.getInputStream());
+                StreamLogger errorLogger = new StreamLogger(reshardProcess.getErrorStream());
+                outputLogger.start();
+                errorLogger.start();
+
+                reshardProcess.waitFor();
+                outputLogger.join();
+                errorLogger.join();
+            }
 
             System.out.println("Successfully resharded the cluster to include the new node.");
         } catch (Exception e) {
