@@ -3,9 +3,11 @@ package mg.demo;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 import redis.clients.jedis.HostAndPort;
+import redis.clients.jedis.Jedis;
 import redis.clients.jedis.JedisCluster;
 
 public class RedisClusterManager {
@@ -40,78 +42,97 @@ public class RedisClusterManager {
 
     public boolean createCluster() {
         try {
-            StringBuilder createCommand = new StringBuilder("redis-cli --cluster create");
+            // Meet each node with every other node to form the cluster
             for (HostAndPort node : clusterNodes) {
-                createCommand.append(" ").append(node.getHost()).append(":").append(node.getPort());
+                try (Jedis jedis = new Jedis(node)) {
+                    for (HostAndPort otherNode : clusterNodes) {
+                        if (!node.equals(otherNode)) {
+                            jedis.clusterMeet(otherNode.getHost(), otherNode.getPort());
+                        }
+                    }
+                }
             }
-            createCommand.append(" --cluster-yes");
 
-            // Execute the create cluster command
-            ProcessBuilder createProcessBuilder = new ProcessBuilder(createCommand.toString().split(" "));
-            System.out.println("Executing command: " + String.join(" ", createProcessBuilder.command()));
-            Process createProcess = createProcessBuilder.start();
-            createProcess.waitFor();
-            printProcessOutput(createProcess);
+            // Wait for the cluster to recognize all nodes
+            waitForClusterState("cluster_known_nodes:3", 10000);
 
-            System.out.println("Successfully created the Redis cluster.");
+            // Allocate slots to the nodes
+            int totalSlots = 16384;
+            int slotsPerNode = totalSlots / clusterNodes.size();
+            int remainingSlots = totalSlots % clusterNodes.size();
+
+            int startSlot = 0;
+            for (HostAndPort node : clusterNodes) {
+                int endSlot = startSlot + slotsPerNode - 1;
+                if (remainingSlots > 0) {
+                    endSlot++;
+                    remainingSlots--;
+                }
+
+                int[] slots = new int[endSlot - startSlot + 1];
+                for (int i = startSlot; i <= endSlot; i++) {
+                    slots[i - startSlot] = i;
+                }
+
+                try (Jedis jedis = new Jedis(node)) {
+                    jedis.clusterAddSlots(slots);
+                }
+
+                startSlot = endSlot + 1;
+            }
+
+            // Wait for all nodes to be properly initialized with slots
+            waitForClusterState("cluster_state:ok", 10000);
 
             // Initialize JedisCluster
             this.jedisCluster = new JedisCluster(clusterNodes);
-
-            // Wait until the cluster is up
-            if (waitForClusterState("ok", 10000)) {
-                return true;
-            } else {
-                System.err.println("Cluster did not reach a healthy state in time.");
-                return false;
-            }
+            System.out.println("Successfully created the Redis cluster.");
+            return true;
         } catch (Exception e) {
             e.printStackTrace();
             return false;
         }
     }
 
+
     private boolean waitForClusterState(String desiredState, long timeoutMillis) {
+        System.out.print("Waiting.");
         long startTime = System.currentTimeMillis();
         while (System.currentTimeMillis() - startTime < timeoutMillis) {
             try {
                 HostAndPort node = clusterNodes.iterator().next();
-                ProcessBuilder clusterInfoProcessBuilder = new ProcessBuilder(
-                        "redis-cli", "-p", String.valueOf(node.getPort()), "cluster", "info");
-                Process clusterInfoProcess = clusterInfoProcessBuilder.start();
-                clusterInfoProcess.waitFor();
-                String output = getProcessOutput(clusterInfoProcess);
-                if (output.contains("cluster_state:" + desiredState)) {
-                    System.out.println("Cluster state is now: " + desiredState);
-                    return true;
+                try (Jedis jedis = new Jedis(node)) {
+                    String output = jedis.clusterInfo();
+                    if (output.contains(desiredState)) {
+                        System.out.println();
+                        System.out.println("Cluster state is now: " + desiredState);
+                        return true;
+                    }
                 }
             } catch (Exception e) {
                 e.printStackTrace();
             }
             try {
                 Thread.sleep(1000);
+                System.out.print(".");
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
             }
         }
+        System.out.println();
         return false;
     }
+
 
     public boolean addNewNodeToCluster(String newNodeIp, int newNodePort) {
         try {
             HostAndPort existingNode = clusterNodes.iterator().next();
 
-            // Meet the new node with an existing node in the cluster
-            ProcessBuilder meetProcessBuilder = new ProcessBuilder(
-                    "redis-cli", "-h", newNodeIp, "-p", String.valueOf(newNodePort),
-                    "cluster", "meet", existingNode.getHost(), String.valueOf(existingNode.getPort()));
-            System.out.println("Executing command: " + String.join(" ", meetProcessBuilder.command()));
-            Process meetProcess = meetProcessBuilder.start();
-            meetProcess.waitFor();
-            printProcessOutput(meetProcess);
-
-            // Add a delay to ensure the node has time to join the cluster
-//            Thread.sleep(5000);
+            // Meet the new node with an existing node in the cluster using Jedis
+            try (Jedis jedis = new Jedis(newNodeIp, newNodePort)) {
+                jedis.clusterMeet(existingNode.getHost(), existingNode.getPort());
+            }
+            System.out.println("Node " + newNodeIp + ":" + newNodePort + " has been met with the cluster.");
 
             // Check cluster status to confirm the node has joined
             if (!waitForClusterNodes(newNodeIp, newNodePort, 10000)) {
@@ -133,6 +154,7 @@ public class RedisClusterManager {
             return false;
         }
     }
+
 
     private boolean waitForClusterNodes(String newNodeIp, int newNodePort, long timeoutMillis) {
         long startTime = System.currentTimeMillis();
@@ -168,8 +190,22 @@ public class RedisClusterManager {
                 return;
             }
 
+            // Retry mechanism to ensure the new node is fully recognized
+            int retries = 5;
+            while (retries > 0 && !isNodeRecognized(existingNode, newNodeId)) {
+                System.out.println("Waiting for the new node to be recognized by the cluster...");
+                Thread.sleep(2000);
+                retries--;
+            }
+
+            if (retries == 0) {
+                System.err.println("New node is not recognized by the cluster after multiple attempts.");
+                return;
+            }
+
             int totalSlots = 16384;
-            int slotsPerNode = totalSlots / (clusterNodes.size());
+            int slotsPerNode = totalSlots / clusterNodes.size();
+            int remainingSlots = totalSlots % clusterNodes.size();
 
             for (HostAndPort node : clusterNodes) {
                 String nodeId = getNodeId(node.getHost(), node.getPort());
@@ -177,26 +213,35 @@ public class RedisClusterManager {
                     continue;
                 }
 
-                int slotsToMove = Math.min(slotsPerNode, totalSlots);
-                totalSlots -= slotsToMove;
+                try (Jedis jedis = new Jedis(node.getHost(), node.getPort())) {
+                    List<Object> slots = jedis.clusterSlots();
+                    for (int slot = 0; slot < slotsPerNode; slot++) {
+                        int slotNumber = (slot + node.getPort() * slotsPerNode) % 16384;
 
-                ProcessBuilder reshardProcessBuilder = new ProcessBuilder(
-                        "redis-cli", "--cluster", "reshard", node.getHost() + ":" + node.getPort(),
-                        "--cluster-from", nodeId,
-                        "--cluster-to", newNodeId,
-                        "--cluster-slots", String.valueOf(slotsToMove),
-                        "--cluster-yes", "-p", String.valueOf(node.getPort()));
-                System.out.println("Executing command: " + String.join(" ", reshardProcessBuilder.command()));
-                Process reshardProcess = reshardProcessBuilder.start();
+                        // Check current owner of the slot before attempting to move
+                        List<Object> slotInfo = slots.stream()
+                                .map(s -> (List<Object>) s)
+                                .filter(s -> (long) s.get(0) <= slotNumber && (long) s.get(1) >= slotNumber)
+                                .findFirst().orElse(null);
+                        if (slotInfo == null) {
+                            continue;
+                        }
 
-                StreamLogger outputLogger = new StreamLogger(reshardProcess.getInputStream());
-                StreamLogger errorLogger = new StreamLogger(reshardProcess.getErrorStream());
-                outputLogger.start();
-                errorLogger.start();
+                        List<Object> nodeDetails = (List<Object>) slotInfo.get(2);
+                        String ownerId = new String((byte[]) nodeDetails.get(2));
 
-                reshardProcess.waitFor();
-                outputLogger.join();
-                errorLogger.join();
+                        if (ownerId.equals(nodeId)) {
+                            jedis.clusterSetSlotMigrating(slotNumber, newNodeId);
+                            try (Jedis newNodeJedis = new Jedis(newNodeIp, newNodePort)) {
+                                newNodeJedis.clusterSetSlotImporting(slotNumber, nodeId);
+                                jedis.clusterSetSlotNode(slotNumber, newNodeId);
+                                System.out.println("Moved slot " + slotNumber + " from node " + nodeId + " to " + newNodeId);
+                            }
+                        } else {
+                            System.out.println("Slot " + slotNumber + " is not owned by node " + nodeId);
+                        }
+                    }
+                }
             }
 
             System.out.println("Successfully resharded the cluster to include the new node.");
@@ -206,14 +251,25 @@ public class RedisClusterManager {
         }
     }
 
+    private boolean isNodeRecognized(HostAndPort existingNode, String newNodeId) {
+        try (Jedis jedis = new Jedis(existingNode.getHost(), existingNode.getPort())) {
+            String nodes = jedis.clusterNodes();
+            for (String nodeInfo : nodes.split("\n")) {
+                if (nodeInfo.contains(newNodeId)) {
+                    return true;
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return false;
+    }
+
+
     private String getNodeId(String host, int port) throws Exception {
-        ProcessBuilder nodeIdProcessBuilder = new ProcessBuilder(
-                "redis-cli", "-h", host, "-p", String.valueOf(port), "cluster", "nodes");
-        Process nodeIdProcess = nodeIdProcessBuilder.start();
-        nodeIdProcess.waitFor();
-        try (BufferedReader reader = new BufferedReader(new InputStreamReader(nodeIdProcess.getInputStream()))) {
-            String line;
-            while ((line = reader.readLine()) != null) {
+        try (Jedis jedis = new Jedis(host, port)) {
+            String clusterNodes = jedis.clusterNodes();
+            for (String line : clusterNodes.split("\n")) {
                 if (line.contains(host + ":" + port)) {
                     return line.split(" ")[0];
                 }
@@ -221,6 +277,8 @@ public class RedisClusterManager {
         }
         return null;
     }
+
+
 
     public boolean removeNodeFromCluster(String removeNodeIp, int removeNodePort) {
         try {

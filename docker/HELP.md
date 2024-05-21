@@ -22,7 +22,7 @@ docker-compose down
 
 
 ```Bash
-redis-cli --cluster create 192.168.10.53:6379 192.168.10.53:6380 192.168.10.53:6381
+redis-cli --cluster create 192.168.10.110:6379 192.168.10.110:6380 192.168.10.110:6381
 ```
 ```Bash
 redis-cli --cluster create \
