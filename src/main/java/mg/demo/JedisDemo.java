@@ -38,7 +38,15 @@ public class JedisDemo {
             System.out.println("Getting key" + i + ": " + value);
         }
 
-        clusterManager.addNewNodeToCluster("192.168.10.110", 6383);
+//        clusterManager.addNewNodeToCluster("192.168.10.110", 6383);
+//
+//        for (int i = 1; i <= 10; i++) {
+//            Integer value = redisMap.get("key" + i);
+//            System.out.println("Getting key" + i + ": " + value);
+//        }
+
+
+        clusterManager.removeNodeFromCluster("192.168.10.110", 6380);
 
         for (int i = 1; i <= 10; i++) {
             Integer value = redisMap.get("key" + i);

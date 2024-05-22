@@ -32,11 +32,9 @@ public class RedisClusterManagerImpl implements RedisClusterManager {
             }
             this.jedisCluster = new JedisCluster(clusterNodes);
             System.out.println("Updated Redis Cluster nodes.");
-        } catch (JedisClusterOperationException e)
-        {
+        } catch (JedisClusterOperationException e) {
             System.out.println("Cluster is not created, SKIP");
-        }
-        catch (Exception e) {
+        } catch (Exception e) {
             System.err.println("Error updating Redis Cluster nodes: " + e.getMessage());
             e.printStackTrace();
         }
@@ -135,7 +133,6 @@ public class RedisClusterManagerImpl implements RedisClusterManager {
         }
     }
 
-
     @Override
     public void rebalanceCluster() {
         try {
@@ -143,15 +140,12 @@ public class RedisClusterManagerImpl implements RedisClusterManager {
             String[] args = {"redis-cli", "--cluster", "rebalance", node.getHost() + ":" + node.getPort(), "--cluster-use-empty-masters"};
             ProcessBuilder pb = new ProcessBuilder(args);
             pb.redirectErrorStream(true);  // Redirect error stream to standard output
+            System.out.println("Executing command: " + String.join(" ", pb.command()));
             Process process = pb.start();
 
             // Capture and print the output of the process
-            try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
-                String line;
-                while ((line = reader.readLine()) != null) {
-                    System.out.println(line);
-                }
-            }
+            String output = getProcessOutput(process);
+            System.out.println(output);
 
             int exitCode = process.waitFor();
             if (exitCode == 0) {
@@ -164,7 +158,6 @@ public class RedisClusterManagerImpl implements RedisClusterManager {
             e.printStackTrace();
         }
     }
-
 
     private boolean waitForClusterState(String desiredState, long timeoutMillis) {
         System.out.print("Waiting.");
@@ -218,12 +211,17 @@ public class RedisClusterManagerImpl implements RedisClusterManager {
     @Override
     public boolean removeNodeFromCluster(String removeNodeIp, int removeNodePort) {
         try {
+            Thread.sleep(3000);
             HostAndPort existingNode = clusterNodes.iterator().next();
 
             // Get the node ID of the node to remove
             String nodeId = getNodeId(removeNodeIp, removeNodePort);
 
             if (nodeId != null) {
+                // Migrate slots from the node to be removed to an existing node
+                String targetNodeId = getNodeId(existingNode.getHost(), existingNode.getPort());
+                migrateSlotsFromNode(existingNode, nodeId, targetNodeId);
+
                 // Remove the node from the cluster
                 try (Jedis jedis = new Jedis(existingNode.getHost(), existingNode.getPort())) {
                     jedis.clusterForget(nodeId);
@@ -232,6 +230,9 @@ public class RedisClusterManagerImpl implements RedisClusterManager {
                 // Update the cluster nodes
                 clusterNodes.remove(new HostAndPort(removeNodeIp, removeNodePort));
                 updateClusterNodes();
+
+                // Rebalance the cluster
+                rebalanceCluster();
 
                 System.out.println("Successfully removed node from the cluster.");
                 return true;
@@ -242,6 +243,34 @@ public class RedisClusterManagerImpl implements RedisClusterManager {
         } catch (Exception e) {
             e.printStackTrace();
             return false;
+        }
+    }
+
+    private void migrateSlotsFromNode(HostAndPort existingNode, String nodeId, String targetNodeId) {
+        try {
+            String[] args = {
+                    "redis-cli", "--cluster", "reshard",
+                    existingNode.getHost() + ":" + existingNode.getPort(),
+                    "--cluster-from", nodeId,
+                    "--cluster-to", targetNodeId,
+                    "--cluster-slots", "16384",
+                    "--cluster-yes"
+            };
+            ProcessBuilder pb = new ProcessBuilder(args);
+            pb.redirectErrorStream(true);  // Redirect error stream to standard output
+            System.out.println("Executing command: " + String.join(" ", pb.command()));
+            Process process = pb.start();
+
+            // Capture and print the output of the process
+            String output = getProcessOutput(process);
+            System.out.println(output);
+
+            int exitCode = process.waitFor();
+            if (exitCode != 0) {
+                throw new RuntimeException("Error migrating slots from node: " + nodeId);
+            }
+        } catch (Exception e) {
+            throw new RuntimeException("Error migrating slots from node: " + e.getMessage(), e);
         }
     }
 
