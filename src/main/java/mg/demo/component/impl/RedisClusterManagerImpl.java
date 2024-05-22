@@ -47,6 +47,9 @@ public class RedisClusterManagerImpl implements RedisClusterManager {
 
     @Override
     public boolean createCluster() {
+        if (jedisCluster != null) {
+            return true;
+        }
         try {
             // Meet each node with every other node to form the cluster
             for (HostAndPort node : clusterNodes) {
@@ -122,7 +125,6 @@ public class RedisClusterManagerImpl implements RedisClusterManager {
             updateClusterNodes();
 
             // Rebalance the cluster after adding new node
-            waitForClusterState("cluster_state:ok", 10000);
             rebalanceCluster();
 
             System.out.println("Successfully added new node to the cluster.");
@@ -136,6 +138,8 @@ public class RedisClusterManagerImpl implements RedisClusterManager {
     @Override
     public void rebalanceCluster() {
         try {
+            waitForClusterState("cluster_state:ok", 10000);
+
             HostAndPort node = clusterNodes.iterator().next();
             String[] args = {"redis-cli", "--cluster", "rebalance", node.getHost() + ":" + node.getPort(), "--cluster-use-empty-masters"};
             ProcessBuilder pb = new ProcessBuilder(args);
@@ -211,7 +215,7 @@ public class RedisClusterManagerImpl implements RedisClusterManager {
     @Override
     public boolean removeNodeFromCluster(String removeNodeIp, int removeNodePort) {
         try {
-            Thread.sleep(3000);
+            waitForClusterState("cluster_state:ok", 10000);
             HostAndPort existingNode = clusterNodes.iterator().next();
 
             // Get the node ID of the node to remove
@@ -292,6 +296,7 @@ public class RedisClusterManagerImpl implements RedisClusterManager {
             String line;
             while ((line = reader.readLine()) != null) {
                 output.append(line).append("\n");
+                System.out.println(line);  // Print each line as it is read
             }
         }
         return output.toString();

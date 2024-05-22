@@ -6,7 +6,7 @@ import mg.demo.redistypes.RedisMap;
 
 import java.util.Map;
 
-public class JedisDemo {
+public class JedisClusterDemo {
     public static void start()  {
         RedisClusterManager clusterManager = new RedisClusterManagerImpl();
 
@@ -48,9 +48,12 @@ public class JedisDemo {
 
         clusterManager.removeNodeFromCluster("192.168.10.110", 6380);
 
-        for (int i = 1; i <= 10; i++) {
-            Integer value = redisMap.get("key" + i);
-            System.out.println("Getting key" + i + ": " + value);
+        while (true) {
+
+            for (int i = 1; i <= 10; i++) {
+                Integer value = redisMap.get("key" + i);
+                System.out.println("Getting key" + i + ": " + value);
+            }
         }
 
 
