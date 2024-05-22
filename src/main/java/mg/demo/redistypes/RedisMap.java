@@ -1,6 +1,7 @@
-package mg.demo;
+package mg.demo.redistypes;
 
 
+import mg.demo.component.RedisClusterManager;
 import redis.clients.jedis.JedisCluster;
 
 import java.util.Collection;

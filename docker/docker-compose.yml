@@ -2,8 +2,8 @@ version: '3.7'
 
 services:
   redis-1:
-#    image: redis:7.2.4-alpine3.19
-    image: redis:6.2
+    image: redis:7.2.4-alpine3.19
+#    image: redis:6.2
     ports:
       - "6379:6379"      # Port for Redis client connections
       - "16379:16379"    # Port for Redis cluster bus (communication between nodes)
@@ -27,7 +27,7 @@ services:
 # --cluster-announce-ip '192.168.10.110'  - Announce this IP to other cluster nodes
 
   redis-2:
-    image: redis:6.2
+    image: redis:7.2.4-alpine3.19
     ports:
       - "6380:6380"
       - "16380:16380"
@@ -43,7 +43,7 @@ services:
       --cluster-announce-ip '192.168.10.110'
 
   redis-3:
-    image: redis:6.2
+    image: redis:7.2.4-alpine3.19
     ports:
       - "6381:6381"
       - "16381:16381"
@@ -59,7 +59,7 @@ services:
       --cluster-announce-ip '192.168.10.110'
 
   redis-4:
-    image: redis:6.2
+    image: redis:7.2.4-alpine3.19
     ports:
       - "6382:6382"
       - "16382:16382"
@@ -74,34 +74,34 @@ services:
       --protected-mode no
       --cluster-announce-ip '192.168.10.110'
 
-#  redis-5:
-#    image: redis:7.2.4-alpine3.19
-#    ports:
-#      - "6383:6383"
-#      - "16383:16383"
-#    command: >
-#      redis-server
-#      --port 6383
-#      --cluster-enabled yes
-#      --cluster-config-file nodes.conf
-#      --cluster-node-timeout 5000
-#      --appendonly yes
-#      --bind 0.0.0.0
-#      --protected-mode no
-#      --cluster-announce-ip '192.168.10.110'
-#
-#  redis-6:
-#    image: redis:7.2.4-alpine3.19
-#    ports:
-#      - "6384:6384"
-#      - "16384:16384"
-#    command: >
-#      redis-server
-#      --port 6384
-#      --cluster-enabled yes
-#      --cluster-config-file nodes.conf
-#      --cluster-node-timeout 5000
-#      --appendonly yes
-#      --bind 0.0.0.0
-#      --protected-mode no
-#      --cluster-announce-ip '192.168.10.110'
+  redis-5:
+    image: redis:7.2.4-alpine3.19
+    ports:
+      - "6383:6383"
+      - "16383:16383"
+    command: >
+      redis-server
+      --port 6383
+      --cluster-enabled yes
+      --cluster-config-file nodes.conf
+      --cluster-node-timeout 5000
+      --appendonly yes
+      --bind 0.0.0.0
+      --protected-mode no
+      --cluster-announce-ip '192.168.10.110'
+
+  redis-6:
+    image: redis:7.2.4-alpine3.19
+    ports:
+      - "6384:6384"
+      - "16384:16384"
+    command: >
+      redis-server
+      --port 6384
+      --cluster-enabled yes
+      --cluster-config-file nodes.conf
+      --cluster-node-timeout 5000
+      --appendonly yes
+      --bind 0.0.0.0
+      --protected-mode no
+      --cluster-announce-ip '192.168.10.110'

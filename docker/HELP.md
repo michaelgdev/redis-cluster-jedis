@@ -14,16 +14,20 @@ ifconfig | grep -o 'inet \([0-9]\{1,3\}\.\)\{3\}[0-9]\{1,3\}' | grep -v '127.0.0
 ```Bash
 docker-compose up -d
 ```
-
 ```Bash
 docker-compose down
 ```
 # Step 3. Creating a Redis Cluster
 
+Create a cluster manually
+```Bash
+redis-cli --cluster create 192.168.10.110:6379 192.168.10.110:6380 192.168.10.110:6381 --cluster-yes
+```
 
 ```Bash
-redis-cli --cluster create 192.168.10.110:6379 192.168.10.110:6380 192.168.10.110:6381
+redis-cli --cluster rebalance 192.168.10.110:6379 --cluster-use-empty-masters
 ```
+
 ```Bash
 redis-cli --cluster create \
 192.168.10.53:6379 \
