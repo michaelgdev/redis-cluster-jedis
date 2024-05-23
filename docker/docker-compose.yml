@@ -16,7 +16,7 @@ services:
       --appendonly yes
       --bind 0.0.0.0
       --protected-mode no
-      --cluster-announce-ip '192.168.10.110'
+      --cluster-announce-ip '192.168.10.53'
 
 # --appendonly yes  - The configuration in Redis enables the Append Only File (AOF) persistence mode.
 # This means that every write operation performed on the Redis server is logged to a file.
@@ -24,7 +24,7 @@ services:
 # providing a robust way to ensure data durability.
 # --bind 0.0.0.0  - Bind to all interfaces (important for Docker environments)
 # --protected-mode no  - Disable protected mode to allow non-local clients
-# --cluster-announce-ip '192.168.10.110'  - Announce this IP to other cluster nodes
+# --cluster-announce-ip '192.168.10.53'  - Announce this IP to other cluster nodes
 
   redis-2:
     image: redis:7.2.4-alpine3.19
@@ -40,7 +40,7 @@ services:
       --appendonly yes
       --bind 0.0.0.0
       --protected-mode no
-      --cluster-announce-ip '192.168.10.110'
+      --cluster-announce-ip '192.168.10.53'
 
   redis-3:
     image: redis:7.2.4-alpine3.19
@@ -56,7 +56,7 @@ services:
       --appendonly yes
       --bind 0.0.0.0
       --protected-mode no
-      --cluster-announce-ip '192.168.10.110'
+      --cluster-announce-ip '192.168.10.53'
 
   redis-4:
     image: redis:7.2.4-alpine3.19
@@ -72,7 +72,7 @@ services:
       --appendonly yes
       --bind 0.0.0.0
       --protected-mode no
-      --cluster-announce-ip '192.168.10.110'
+      --cluster-announce-ip '192.168.10.53'
 
   redis-5:
     image: redis:7.2.4-alpine3.19
@@ -88,7 +88,7 @@ services:
       --appendonly yes
       --bind 0.0.0.0
       --protected-mode no
-      --cluster-announce-ip '192.168.10.110'
+      --cluster-announce-ip '192.168.10.53'
 
   redis-6:
     image: redis:7.2.4-alpine3.19
@@ -104,7 +104,7 @@ services:
       --appendonly yes
       --bind 0.0.0.0
       --protected-mode no
-      --cluster-announce-ip '192.168.10.110'
+      --cluster-announce-ip '192.168.10.53'
 
   redis-7:
     image: redis:7.2.4-alpine3.19
@@ -120,7 +120,7 @@ services:
       --appendonly yes
       --bind 0.0.0.0
       --protected-mode no
-      --cluster-announce-ip '192.168.10.110'
+      --cluster-announce-ip '192.168.10.53'
 
   redis-8:
     image: redis:7.2.4-alpine3.19
@@ -136,7 +136,7 @@ services:
       --appendonly yes
       --bind 0.0.0.0
       --protected-mode no
-      --cluster-announce-ip '192.168.10.110'
+      --cluster-announce-ip '192.168.10.53'
 
 #  sentinel1:
 #    image: redis:7.2.4-alpine3.19
