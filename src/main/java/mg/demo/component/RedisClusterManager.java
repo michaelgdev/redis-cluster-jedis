@@ -11,6 +11,9 @@ import java.util.Set;
 
 public class RedisClusterManager {
     private static final Logger logger = LoggerFactory.getLogger(RedisClusterManager.class);
+    // Number of attempts connecting to Cluster
+    private static final int MAX_ATTEMPTS = 100_000;
+
     private JedisCluster jedisCluster;
 
     public RedisClusterManager() {
@@ -32,15 +35,19 @@ public class RedisClusterManager {
                     .socketTimeoutMillis(2000) // 2 seconds
                     .build();
 
-            int maxAttempts = 1000; // Number of attempts
-            this.jedisCluster = new JedisCluster(initialClusterNodes, clientConfig, maxAttempts, poolConfig);
-            logger.info("Connected to Redis cluster with nodes: {}", initialClusterNodes);
+            this.jedisCluster = new JedisCluster(initialClusterNodes, clientConfig, MAX_ATTEMPTS, poolConfig);
+            logger.debug("Connected to Redis cluster with nodes: {}", initialClusterNodes);
         } catch (Exception e) {
-            logger.error("Error connecting to Redis cluster", e);
+            logger.debug("Error connecting to Redis cluster", e);
         }
     }
 
 
+    /**
+     * Refreshes the cluster state by forcing a reconnection to the Redis cluster.
+     * Jedis is designed to automatically update the cluster nodes, but this method
+     * can be used to force an immediate update if needed.
+     */
     public void refreshClusterState() {
         if (!isClusterStateOk()) {
             logger.warn("Cluster state is not OK. Aborting refresh.");
@@ -62,7 +69,7 @@ public class RedisClusterManager {
             try {
                 jedisCluster.close();
             } catch (Exception e) {
-                logger.error("Error closing JedisCluster", e);
+                logger.debug("Error closing JedisCluster", e);
             }
         }
 
@@ -84,10 +91,9 @@ public class RedisClusterManager {
             }
             return true;
         } catch (Exception e) {
-            logger.error("Error checking cluster state", e);
+            logger.debug("Error checking cluster state", e);
             return false;
         }
     }
-
 
 }

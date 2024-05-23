@@ -1,6 +1,5 @@
-package mg.demo.component.impl;
+package mg.demo.component;
 
-import mg.demo.component.RedisClusterManager2;
 import redis.clients.jedis.HostAndPort;
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.JedisCluster;
@@ -13,20 +12,19 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-public class RedisClusterManager2Impl implements RedisClusterManager2 {
+public class RedisClusterManagerExt {
     private JedisCluster jedisCluster;
     private Set<HostAndPort> clusterNodes;
 
-    public RedisClusterManager2Impl() {
+    public RedisClusterManagerExt() {
         this.clusterNodes = new HashSet<>();
     }
 
-    @Override
+
     public JedisCluster getJedisCluster() {
         return jedisCluster;
     }
 
-    @Override
     public synchronized void updateClusterNodes() {
         try {
             if (this.jedisCluster != null) {
@@ -42,12 +40,12 @@ public class RedisClusterManager2Impl implements RedisClusterManager2 {
         }
     }
 
-    @Override
+
     public void addNode(String nodeIp, int nodePort) {
         clusterNodes.add(new HostAndPort(nodeIp, nodePort));
     }
 
-    @Override
+
     public boolean createCluster() {
         if (jedisCluster != null) {
             return true;
@@ -133,7 +131,7 @@ public class RedisClusterManager2Impl implements RedisClusterManager2 {
 //    }
 
 
-    @Override
+
     public boolean addNewNodeToCluster(String newNodeIp, int newNodePort) {
         try {
             HostAndPort existingNode = clusterNodes.iterator().next();
@@ -165,7 +163,7 @@ public class RedisClusterManager2Impl implements RedisClusterManager2 {
         }
     }
 
-    @Override
+
     public void rebalanceCluster() {
         try {
             waitForClusterState("cluster_state:ok", 10000);
@@ -242,7 +240,7 @@ public class RedisClusterManager2Impl implements RedisClusterManager2 {
         return false;
     }
 
-    @Override
+
     public boolean removeNodeFromCluster(String removeNodeIp, int removeNodePort) {
         try {
             waitForClusterState("cluster_state:ok", 10000);

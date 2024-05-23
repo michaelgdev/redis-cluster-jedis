@@ -5,11 +5,11 @@ import redis.clients.jedis.JedisCluster;
 
 import java.util.*;
 
-public class RedisMap implements Map<String, Integer> {
+public class RedisMapStrIntImpl implements Map<String, Integer> {
     private final RedisClusterManager clusterManager;
     private final String redisHashKey;
 
-    public RedisMap(RedisClusterManager clusterManager) {
+    public RedisMapStrIntImpl(RedisClusterManager clusterManager) {
         this.clusterManager = clusterManager;
         this.redisHashKey = "redis_map:" + UUID.randomUUID();
     }
@@ -102,6 +102,21 @@ public class RedisMap implements Map<String, Integer> {
             entrySet.add(new AbstractMap.SimpleEntry<>(entry.getKey(), Integer.valueOf(entry.getValue())));
         }
         return entrySet;
+    }
+
+    @Override
+    public String toString() {
+        Map<String, String> redisMap = getJedisCluster().hgetAll(redisHashKey);
+        StringBuilder sb = new StringBuilder();
+        sb.append("{");
+        for (Entry<String, String> entry : redisMap.entrySet()) {
+            if (sb.length() > 1) {
+                sb.append(", ");
+            }
+            sb.append(entry.getKey()).append("=").append(entry.getValue());
+        }
+        sb.append("}");
+        return sb.toString();
     }
 
 }

@@ -1,8 +1,8 @@
 ## Start Redis Cluster configuration in Docker (3 Master+3 Slave)
 
-# Step 1. Determine IP address of Docker Host machine
-Put found address in docker-compose.yml in the param 'cluster-announce-ip' and for the Step 3
-## EXECUTE IT
+# Step 1. Determine the IP Address of the Docker Host Machine
+Put YOUR found address in `docker-compose.yml` and `HELP.md`.
+## Execute the Script
 ```Bash
 ./update-ip.sh
 ```
@@ -12,56 +12,63 @@ ifconfig | grep -o 'inet \([0-9]\{1,3\}\.\)\{3\}[0-9]\{1,3\}' | grep -v '127.0.0
 ```
 
 # Step 2. Start Docker Containers
+Start:
 ```Bash
 docker-compose up -d
 ```
+Stop:
 ```Bash
 docker-compose down -v
 ```
 # Step 3. Creating a Redis Cluster
+Create a cluster (3 masters + 3 slaves):
+```Bash
+redis-cli --cluster CREATE 192.168.10.110:6379 192.168.10.110:6380 192.168.10.110:6381 192.168.10.110:6382 192.168.10.110:6383 192.168.10.110:6384 --cluster-replicas 1 --cluster-yes
+```
 
-Create a cluster 3 masters
-```Bash
-redis-cli --cluster create 192.168.10.110:6379 192.168.10.110:6380 192.168.10.110:6381 --cluster-yes
-```
-Create a cluster 3 masters + 3 slaves
-```Bash
-redis-cli --cluster create 192.168.10.110:6379 192.168.10.110:6380 192.168.10.110:6381 192.168.10.110:6382 192.168.10.110:6383 192.168.10.110:6384 --cluster-replicas 1 --cluster-yes
-```
+# Step 4. Add New Nodes to the Cluster (Run the Application Before This Step)
+Adding new nodes to the Cluster (Future Master + Slave):
 ```Bash
 redis-cli cluster meet 192.168.10.110 6385
-```
-```Bash
 redis-cli cluster meet 192.168.10.110 6386
 ```
-Make a node as a Slave
-```
+
+# Step 5. Make the New Node a Slave
+Make a node as a Slave:
+```Bash
 redis-cli -p 6386 cluster replicate <master-node-id>
 ```
-Remove a node from a Cluster
-```
-redis-cli cluster forget <remove-node-id>
-```
 
+# Step 6. Rebalance Slots Across All Nodes
 ```Bash
 redis-cli --cluster rebalance 192.168.10.110:6379 --cluster-use-empty-masters
 ```
-Get the state of Cluster
+
+# Step 7. Remove a node from Cluster
+Remove a Node from the Cluster:
 ```Bash
-redis-cli cluster nodes
-redis-cli cluster info
+redis-cli cluster forget <remove-node-id>
 ```
-Logs
+
+Get the state of the Cluster:
+```Bash
+redis-cli CLUSTER NODES
+```
+```Bash
+redis-cli CLUSTER INFO
+```
+
+Logs:
 ```Bash
 docker logs docker-redis-1-1
 ```
 
 ### DATA MANIPULATION
-Read Keys
+Read Keys:
 ```Bash
 redis-cli -p 6379 KEYS "*"
 redis-cli -p 6380 KEYS "*"
 redis-cli -p 6381 KEYS "*"
 redis-cli -p 6380 KEYS "redis_map:*"
+redis-cli -p 6380 KEYS "redis_list:*"
 ```
-
