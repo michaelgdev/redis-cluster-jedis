@@ -2,7 +2,6 @@ package mg.demo.redistypes;
 
 
 import mg.demo.component.RedisClusterManager;
-import mg.demo.component.RedisClusterManagerLight;
 import redis.clients.jedis.JedisCluster;
 
 import java.util.Collection;
@@ -10,9 +9,9 @@ import java.util.Map;
 import java.util.Set;
 
 public class RedisMap2 implements Map<String, Integer> {
-    private RedisClusterManagerLight clusterManager;
+    private RedisClusterManager clusterManager;
 
-    public RedisMap2(RedisClusterManagerLight clusterManager) {
+    public RedisMap2(RedisClusterManager clusterManager) {
         this.clusterManager = clusterManager;
     }
 

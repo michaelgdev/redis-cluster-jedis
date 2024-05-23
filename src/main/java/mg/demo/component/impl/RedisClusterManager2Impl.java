@@ -1,6 +1,6 @@
 package mg.demo.component.impl;
 
-import mg.demo.component.RedisClusterManager;
+import mg.demo.component.RedisClusterManager2;
 import redis.clients.jedis.HostAndPort;
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.JedisCluster;
@@ -13,11 +13,11 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-public class RedisClusterManagerImpl implements RedisClusterManager {
+public class RedisClusterManager2Impl implements RedisClusterManager2 {
     private JedisCluster jedisCluster;
     private Set<HostAndPort> clusterNodes;
 
-    public RedisClusterManagerImpl() {
+    public RedisClusterManager2Impl() {
         this.clusterNodes = new HashSet<>();
     }
 

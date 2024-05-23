@@ -33,22 +33,32 @@ redis-cli cluster meet 192.168.10.53 6385
 ```Bash
 redis-cli cluster meet 192.168.10.53 6386
 ```
-
+Make a node as a Slave
+```
+redis-cli -p 6386 cluster replicate <master-node-id>
+```
+Remove a node from a Cluster
+```
+redis-cli cluster forget <remove-node-id>
+```
 
 ```Bash
 redis-cli --cluster rebalance 192.168.10.53:6379 --cluster-use-empty-masters
-
 ```
-
+Get the state of Cluster
 ```Bash
 redis-cli cluster nodes
-```
-
-Checking The Cluster
-```Bash
-redis-cli -h localhost -p 6379 cluster nodes
+redis-cli cluster info
 ```
 Logs
 ```Bash
 docker logs docker-redis-1-1
 ```
+
+### DATA MANIPULATION
+
+```Bash
+redis-cli -p 6380 KEYS "*"
+redis-cli -p 6380 KEYS "redis_map:*"
+```
+
