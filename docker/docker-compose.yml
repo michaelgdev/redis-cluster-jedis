@@ -105,3 +105,62 @@ services:
       --bind 0.0.0.0
       --protected-mode no
       --cluster-announce-ip '192.168.10.110'
+
+  redis-7:
+    image: redis:7.2.4-alpine3.19
+    ports:
+      - "6385:6385"
+      - "16385:16385"
+    command: >
+      redis-server
+      --port 6385
+      --cluster-enabled yes
+      --cluster-config-file nodes.conf
+      --cluster-node-timeout 5000
+      --appendonly yes
+      --bind 0.0.0.0
+      --protected-mode no
+      --cluster-announce-ip '192.168.10.110'
+
+  redis-8:
+    image: redis:7.2.4-alpine3.19
+    ports:
+      - "6386:6386"
+      - "16386:16386"
+    command: >
+      redis-server
+      --port 6386
+      --cluster-enabled yes
+      --cluster-config-file nodes.conf
+      --cluster-node-timeout 5000
+      --appendonly yes
+      --bind 0.0.0.0
+      --protected-mode no
+      --cluster-announce-ip '192.168.10.110'
+
+#  sentinel1:
+#    image: redis:7.2.4-alpine3.19
+#    ports:
+#      - "26379:26379"
+#    volumes:
+#      - ./sentinel.conf:/etc/redis/sentinel.conf
+#      - ./sentinel-state:/data
+#    command: >
+#      redis-sentinel /etc/redis/sentinel.conf --sentinel
+#    environment:
+#      - REDIS_SENTINEL_QUORUM=2
+#      - REDIS_SENTINEL_DOWN_AFTER=5000
+#      - REDIS_SENTINEL_PARALLEL_SYNCS=1
+#      - REDIS_SENTINEL_FAILOVER=60000
+#    depends_on:
+#      - redis-1
+#      - redis-2
+#      - redis-3
+#      - redis-4
+#      - redis-5
+#      - redis-6
+#      - redis-7
+#      - redis-8
+#
+#volumes:
+#  sentinel-state:

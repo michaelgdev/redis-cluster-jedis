@@ -1,10 +1,15 @@
 package mg.demo;
 
 import mg.demo.component.RedisClusterManager;
+import mg.demo.component.RedisClusterManagerLight;
 import mg.demo.component.impl.RedisClusterManagerImpl;
 import mg.demo.redistypes.RedisMap;
+import mg.demo.redistypes.RedisMap2;
+import redis.clients.jedis.HostAndPort;
 
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 
 public class JedisClusterDemo {
     public static void start()  {
@@ -14,9 +19,12 @@ public class JedisClusterDemo {
         clusterManager.addNode("192.168.10.110", 6379);
         clusterManager.addNode("192.168.10.110", 6380);
         clusterManager.addNode("192.168.10.110", 6381);
+        clusterManager.addNode("192.168.10.110", 6382);
+        clusterManager.addNode("192.168.10.110", 6383);
+        clusterManager.addNode("192.168.10.110", 6384);
         clusterManager.updateClusterNodes();
 
-        clusterManager.createCluster();
+//        clusterManager.createCluster();
 
         // Create the RedisMap instance
         Map<String, Integer> redisMap = new RedisMap(clusterManager);
@@ -31,7 +39,7 @@ public class JedisClusterDemo {
             System.out.println("Getting key" + i + ": " + value);
         }
 
-        clusterManager.addNewNodeToCluster("192.168.10.110", 6382);
+//        clusterManager.addNewNodeToCluster("192.168.10.110", 6385);
 
         for (int i = 1; i <= 10; i++) {
             Integer value = redisMap.get("key" + i);
@@ -46,14 +54,18 @@ public class JedisClusterDemo {
 //        }
 
 
-        clusterManager.removeNodeFromCluster("192.168.10.110", 6380);
+//        clusterManager.removeNodeFromCluster("192.168.10.110", 6380);
 
         while (true) {
-
             for (int i = 1; i <= 10; i++) {
                 Integer value = redisMap.get("key" + i);
                 System.out.println("Getting key" + i + ": " + value);
             }
+//            try {
+//                Thread.sleep(2000);
+//            } catch (InterruptedException e) {
+//                throw new RuntimeException(e);
+//            }
         }
 
 
@@ -90,6 +102,26 @@ public class JedisClusterDemo {
     }
 
     public static void start2 () {
+        Set<HostAndPort> initialNodes = new HashSet<>();
+        initialNodes.add(new HostAndPort("192.168.10.110", 6379));
+
+        RedisClusterManagerLight redisClusterManagerLight = new RedisClusterManagerLight(initialNodes);
+
+
+        // Create the RedisMap instance
+        Map<String, Integer> redisMap = new RedisMap2(redisClusterManagerLight);
+
+        // Add 100 keys to the RedisMap
+        for (int i = 1; i <= 10; i++) {
+            redisMap.put("key" + i, i);
+        }
+
+        while (true) {
+            for (int i = 1; i <= 10; i++) {
+                Integer value = redisMap.get("key" + i);
+                System.out.println("Getting key" + i + ": " + value);
+            }
+        }
 
     }
 }

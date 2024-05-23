@@ -8,7 +8,9 @@ import redis.clients.jedis.exceptions.JedisClusterOperationException;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 public class RedisClusterManagerImpl implements RedisClusterManager {
@@ -65,14 +67,18 @@ public class RedisClusterManagerImpl implements RedisClusterManager {
             // Wait for the cluster to recognize all nodes
             waitForClusterState("cluster_known_nodes:" + clusterNodes.size(), 10000);
 
-            // Allocate slots to the nodes
+            // Allocate slots to master nodes
             int totalSlots = 16384;
-            int slotsPerNode = totalSlots / clusterNodes.size();
-            int remainingSlots = totalSlots % clusterNodes.size();
+            int masters = 3;
+            int slotsPerMaster = totalSlots / masters;
+            int remainingSlots = totalSlots % masters;
 
             int startSlot = 0;
-            for (HostAndPort node : clusterNodes) {
-                int endSlot = startSlot + slotsPerNode - 1;
+            List<HostAndPort> masterNodes = new ArrayList<>(clusterNodes).subList(0, masters);
+            List<HostAndPort> slaveNodes = new ArrayList<>(clusterNodes).subList(masters, clusterNodes.size());
+
+            for (HostAndPort masterNode : masterNodes) {
+                int endSlot = startSlot + slotsPerMaster - 1;
                 if (remainingSlots > 0) {
                     endSlot++;
                     remainingSlots--;
@@ -83,11 +89,22 @@ public class RedisClusterManagerImpl implements RedisClusterManager {
                     slots[i - startSlot] = i;
                 }
 
-                try (Jedis jedis = new Jedis(node)) {
+                try (Jedis jedis = new Jedis(masterNode)) {
                     jedis.clusterAddSlots(slots);
                 }
 
                 startSlot = endSlot + 1;
+            }
+
+            // Assign slaves to masters
+            for (int i = 0; i < masters; i++) {
+                HostAndPort masterNode = masterNodes.get(i);
+                HostAndPort slaveNode = slaveNodes.get(i);
+
+                try (Jedis jedis = new Jedis(slaveNode)) {
+                    String masterId = getNodeId(masterNode.getHost(), masterNode.getPort());
+                    jedis.clusterReplicate(masterId);
+                }
             }
 
             // Wait for all nodes to be properly initialized with slots
@@ -95,13 +112,26 @@ public class RedisClusterManagerImpl implements RedisClusterManager {
 
             // Initialize JedisCluster
             this.jedisCluster = new JedisCluster(clusterNodes);
-            System.out.println("Successfully created the Redis cluster.");
+            System.out.println("Successfully created the Redis cluster with 3 masters and 3 slaves.");
             return true;
         } catch (Exception e) {
             e.printStackTrace();
             return false;
         }
     }
+
+//    private String getNodeId(String host, int port) throws Exception {
+//        try (Jedis jedis = new Jedis(host, port)) {
+//            String clusterNodes = jedis.clusterNodes();
+//            for (String line : clusterNodes.split("\n")) {
+//                if (line.contains(host + ":" + port)) {
+//                    return line.split(" ")[0];
+//                }
+//            }
+//        }
+//        return null;
+//    }
+
 
     @Override
     public boolean addNewNodeToCluster(String newNodeIp, int newNodePort) {

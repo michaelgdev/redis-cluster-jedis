@@ -19,25 +19,27 @@ docker-compose down
 ```
 # Step 3. Creating a Redis Cluster
 
-Create a cluster manually
+Create a cluster 3 masters
 ```Bash
 redis-cli --cluster create 192.168.10.110:6379 192.168.10.110:6380 192.168.10.110:6381 --cluster-yes
 ```
+Create a cluster 3 masters + 3 slaves
+```Bash
+redis-cli --cluster create 192.168.10.110:6379 192.168.10.110:6380 192.168.10.110:6381 192.168.10.110:6382 192.168.10.110:6383 192.168.10.110:6384 --cluster-replicas 1 --cluster-yes
+```
+```Bash
+redis-cli cluster meet 192.168.10.110 6385
+```
+```Bash
+redis-cli cluster meet 192.168.10.110 6386
+```
+
 
 ```Bash
 redis-cli --cluster rebalance 192.168.10.110:6379 --cluster-use-empty-masters
+
 ```
 
-```Bash
-redis-cli --cluster create \
-192.168.10.53:6379 \
-192.168.10.53:6380 \
-192.168.10.53:6381 \
-192.168.10.53:6382 \
-192.168.10.53:6383 \
-192.168.10.53:6384 \
---cluster-replicas 1 --cluster-yes
-```
 ```Bash
 redis-cli cluster nodes
 ```
