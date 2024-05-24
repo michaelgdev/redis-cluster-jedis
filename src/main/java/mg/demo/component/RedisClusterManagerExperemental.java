@@ -12,11 +12,11 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-public class RedisClusterManagerExt {
+public class RedisClusterManagerExperemental {
     private JedisCluster jedisCluster;
     private Set<HostAndPort> clusterNodes;
 
-    public RedisClusterManagerExt() {
+    public RedisClusterManagerExperemental() {
         this.clusterNodes = new HashSet<>();
     }
 
