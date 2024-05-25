@@ -23,7 +23,7 @@ docker-compose down -v
 # Step 3. Creating a Redis Cluster
 Create a cluster (3 masters + 3 slaves):
 ```Bash
-redis-cli --cluster CREATE 192.168.10.110:6379 192.168.10.110:6380 192.168.10.110:6381 192.168.10.110:6382 192.168.10.110:6383 192.168.10.110:6384 --cluster-replicas 1 --cluster-yes
+redis-cli --cluster create 192.168.10.110:6379 192.168.10.110:6380 192.168.10.110:6381 192.168.10.110:6382 192.168.10.110:6383 192.168.10.110:6384 --cluster-replicas 1 --cluster-yes
 ```
 
 # Step 4. Add New Nodes to the Cluster (Run the Application Before This Step)
