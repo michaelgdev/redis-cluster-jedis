@@ -23,14 +23,14 @@ docker-compose down -v
 # Step 3. Creating a Redis Cluster
 Create a cluster (3 masters + 3 slaves):
 ```bash
-redis-cli --cluster create 192.168.10.53:6379 192.168.10.53:6380 192.168.10.53:6381 192.168.10.53:6382 192.168.10.53:6383 192.168.10.53:6384 --cluster-replicas 1 --cluster-yes
+redis-cli --cluster create 192.168.10.110:6379 192.168.10.110:6380 192.168.10.110:6381 192.168.10.110:6382 192.168.10.110:6383 192.168.10.110:6384 --cluster-replicas 1 --cluster-yes
 ```
 
 # Step 4. Add New Nodes to the Cluster (Run the Application Before This Step)
 Adding new nodes to the Cluster (Future Master + Slave):
 ```bash
-redis-cli cluster meet 192.168.10.53 6385
-redis-cli cluster meet 192.168.10.53 6386
+redis-cli cluster meet 192.168.10.110 6385
+redis-cli cluster meet 192.168.10.110 6386
 ```
 
 # Step 5. Make the New Node a Slave
@@ -41,7 +41,7 @@ redis-cli -p 6386 cluster replicate <master-node-id>
 
 # Step 6. Rebalance Slots Across All Nodes
 ```bash
-redis-cli --cluster rebalance 192.168.10.53:6379 --cluster-use-empty-masters
+redis-cli --cluster rebalance 192.168.10.110:6379 --cluster-use-empty-masters
 ```
 
 # Step 7. Remove a node from Cluster
